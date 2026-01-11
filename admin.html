@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Judge Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-100 p-6">
+    <div class="max-w-md mx-auto bg-white rounded-3xl shadow-xl p-8">
+        <h2 class="text-2xl font-bold mb-6">Result Entry</h2>
+        
+        <div class="space-y-4">
+            <input id="race" type="text" placeholder="Race Name (e.g. 100m Sprint)" class="w-full p-4 bg-slate-50 border rounded-xl">
+            <input id="student" type="text" placeholder="Student Name" class="w-full p-4 bg-slate-50 border rounded-xl">
+            <input id="class" type="text" placeholder="Class (e.g. 9)" class="w-full p-4 bg-slate-50 border rounded-xl">
+            
+            <select id="house" class="w-full p-4 bg-slate-50 border rounded-xl font-bold">
+                <option value="AL_BAIRUNI">AL BAIRUNI</option>
+                <option value="IBN_E_BATUTA">IBN-E-BATUTA</option>
+                <option value="IBN_E_FADLAN">IBN-E-FADLAN</option>
+                <option value="NASIR_AL_KHUSRAW">NASIR AL KHUSRAW</option>
+            </select>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="add(40, 'Platinum')" class="bg-indigo-600 text-white p-4 rounded-xl font-bold">Platinum (40)</button>
+                <button onclick="add(30, 'Gold')" class="bg-yellow-500 text-white p-4 rounded-xl font-bold">Gold (30)</button>
+                <button onclick="add(20, 'Silver')" class="bg-slate-400 text-white p-4 rounded-xl font-bold">Silver (20)</button>
+                <button onclick="add(10, 'Bronze')" class="bg-orange-700 text-white p-4 rounded-xl font-bold">Bronze (10)</button>
+            </div>
+            
+            <button onclick="reset()" class="w-full text-xs text-red-300 mt-10">Clear Leaderboard</button>
+        </div>
+    </div>
+
+    <script>
+        // SAME FIREBASE CONFIG AS ABOVE
+        const firebaseConfig = {
+                apiKey: "AIzaSyD9hgPwH9w_Z6pf6raGzXT2LShihR2-lfA",
+                authDomain: "live-scorecard-amrec.firebaseapp.com",
+                projectId: "live-scorecard-amrec",
+                storageBucket: "live-scorecard-amrec.firebasestorage.app",
+                messagingSenderId: "1087081955486",
+                appId: "1:1087081955486:web:6f57336b51fb0d122f3b8f",
+                measurementId: "G-9PZJRL460X"
+                };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function add(pts, type) {
+            const h = document.getElementById('house').value;
+            const r = document.getElementById('race').value;
+            const s = document.getElementById('student').value;
+            const c = document.getElementById('class').value;
+
+            db.ref('scores/' + h).transaction(curr => (curr || 0) + pts);
+            db.ref('lastWin').set({ name: s, class: c, house: h, pts: pts, race: r });
+            alert("Points added to " + h);
+        }
+
+        function reset() {
+            if(confirm("Wipe all scores?")) db.ref('/').set(null);
+        }
+    </script>
+</body>
+</html>
