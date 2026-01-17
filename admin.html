@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Housing Matches 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-100 p-4">
+    <div class="max-w-xl mx-auto bg-white rounded-[2.5rem] shadow-2xl p-8 border border-slate-200">
+        <h2 class="text-3xl font-black mb-6 text-slate-800 border-b-4 border-indigo-600 pb-2 text-center uppercase italic">Race Control Center</h2>
+        
+        <div class="space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">1. Select Race</label>
+                <select id="race" onchange="loadStudents()" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold text-slate-700 outline-none focus:border-indigo-500">
+                    <option value="">-- Choose Event --</option>
+                    <option value="Color Object Race">Color Object Race</option>
+                    <option value="Blindfold Race">Blindfold Race</option>
+                    <option value="Treasure Hunt">Treasure Hunt</option>
+                    <option value="Balance the Balloon Race">Balance the Balloon Race</option>
+                    <option value="Three leg race">Three leg race</option>
+                    <option value="Glass Tower Race">Glass Tower Race</option>
+                    <option value="Digital Game of Color Sorting">Digital Game of Color Sorting</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">2. Search Student Name</label>
+                <input 
+                    list="student-list" 
+                    id="student-search" 
+                    oninput="handleStudentSelection()" 
+                    placeholder="Start typing name..."
+                    class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold text-slate-700 outline-none focus:border-indigo-500"
+                >
+                <datalist id="student-list"></datalist>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">3. House (Auto-detected)</label>
+                <input type="text" id="house-display" readonly class="w-full p-4 bg-slate-200 border-2 border-slate-300 rounded-2xl font-black text-slate-900 uppercase italic">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="saveToBuffer(40, 'Platinum', 1)" class="bg-indigo-600 text-white p-5 rounded-2xl font-black shadow-lg active:scale-95">PLATINUM (40)</button>
+                <button onclick="saveToBuffer(30, 'Gold', 2)" class="bg-yellow-500 text-white p-5 rounded-2xl font-black shadow-lg active:scale-95">GOLD (30)</button>
+                <button onclick="saveToBuffer(20, 'Silver', 3)" class="bg-slate-400 text-white p-5 rounded-2xl font-black shadow-lg active:scale-95">SILVER (20)</button>
+                <button onclick="saveToBuffer(10, 'Bronze', 4)" class="bg-orange-700 text-white p-5 rounded-2xl font-black shadow-lg active:scale-95">BRONZE (10)</button>
+            </div>
+
+            <div class="pt-6 mt-6 border-t-2 border-slate-100 space-y-3">
+                <button onclick="showOnTable()" class="w-full bg-emerald-500 text-white p-6 rounded-3xl font-black text-xl shadow-lg border-b-4 border-emerald-700">
+                    📢 SHOW WINNERS ON TABLE
+                </button>
+                <button onclick="startNewRace()" class="w-full bg-slate-100 text-slate-500 p-3 rounded-xl font-bold text-sm border border-slate-200">
+                    🔄 NEXT RACE (CLEAR TABLE ONLY)
+                </button>
+            </div>
+
+            <div class="pt-4 border-t border-red-100">
+                <button onclick="fullReset()" class="w-full bg-red-50 text-red-600 p-3 rounded-xl font-black text-xs border border-red-200 hover:bg-red-600 hover:text-white transition-all">
+                    ⚠️ FULL SYSTEM RESET (ZERO ALL POINTS)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD9hgPwH9w_Z6pf6raGzXT2LShihR2-lfA",
+            authDomain: "live-scorecard-amrec.firebaseapp.com",
+            databaseURL: "https://live-scorecard-amrec-default-rtdb.firebaseio.com",
+            projectId: "live-scorecard-amrec",
+            storageBucket: "live-scorecard-amrec.firebasestorage.app",
+            messagingSenderId: "1087081955486",
+            appId: "1:1087081955486:web:6f57336b51fb0d122f3b8f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let localBuffer = [];
+
+        // Race Data
+        const raceData = { "Color Object Race": [{"PARTICIPANT": "AMAAL (AFGHAN)", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "AROOSH SAJID", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "ARSHIYA AIJAZ", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "FARHAN SAFDAR ALI", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "MARFA NEHBOOB", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "NIYASH (AFGHAN)", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "ROMASA ", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "SALVA RIZWAN ", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "SARSHER (AFGHAN)", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "SARWAR (AFGHAN)", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SHAHZADI HAIDER ALI", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "MEENA (AFGHANI)", "HOUSE": "NASIR_AL_KHUSRAW"},{"PARTICIPANT": "SIVASH KHAKWANI", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "SOHAB ALI", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SUBHAN", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "WAZAH WAHAB", "HOUSE": "IBN_E_BATUTA"}], "Blindfold Race": [{"PARTICIPANT": " ANISA PYAR ALI", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "ALLMANA", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "HASSAN JALIL", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "IMMAD SHERALAM", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "MADINA", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "MANAHIL NOORUDIN", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "NAVEED ALI", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "NIYAISH", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "REHAN QADIR", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "SALWA ANWER ", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SALWA RIZWAZ", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SHAHAN SHERALI", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SHAHRUKH MIR", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SITAISH", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "YANISH", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "ZEEDAN WALI", "HOUSE": "IBN_E_FADLAN"}], "Treasure Hunt": [{"PARTICIPANT": " UMYAAN SHAH", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "ABIHA", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "ARZAR SHAMS", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "AYAT", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "BENAZIR", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "FATIMA", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "HABIBULLAH", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "ILYAS", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "MARJAN", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "MEERA", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "MURTAZA", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "RIDA IMRAN", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SHAMEEL SARANG", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SHAHZAIN", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "ZERNISH MANZOOR", "HOUSE": "AL_BAIRUNI"}], "Balance the Balloon Race": [{"PARTICIPANT": "AARIZ ALI", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "ABIYAN ALI", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "AHMER RIZWAN", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "AIZANOOR", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "ARISH", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "FAIQ", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "FALIHA FAHIM", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "HAROON", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "JIBRAN ALI", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "MAHEEN MOIZ", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "MUSKAN ARIF", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "NEHA MURTAZA", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "SAROSH", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SEEHFA SHAHID", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "UNZIL", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "ZAYAN RAMZAN", "HOUSE": "IBN_E_BATUTA"}], "Three leg race": [{"PARTICIPANT": "ALI WARIS ASIF", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "ATIF AHSAN ALI", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "AYAN ALI SALAMAT", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "KIRAMAT", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "MUBEEN KAMRAN", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "RAHEEL RAMZAN", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SHAAZ PYARALI", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "SHAYAN SHAHID", "HOUSE": "IBN_E_BATUTA"}], "Glass Tower Race": [{"PARTICIPANT": "FARIHA", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "KHALIQA", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "MUSKAN (AFGHAN)", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "NABIHA FIDA", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SEHAR SIKANDAR", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "SHAKILA", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "SHARIKA KAMIL", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SUHANA ALI AKBER", "HOUSE": "IBN_E_FADLAN"}], "Digital Game of Color Sorting": [{"PARTICIPANT": "ANIQ AQEEL", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "ESHAL MIR", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "FAIQA", "HOUSE": "AL_BAIRUNI"}, {"PARTICIPANT": "FAIZAN", "HOUSE": "IBN_E_BATUTA"}, {"PARTICIPANT": "SARHAN KAMIL", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "SHOUJA", "HOUSE": "IBN_E_FADLAN"}, {"PARTICIPANT": "SUHANA WALI", "HOUSE": "NASIR_AL_KHUSRAW"}, {"PARTICIPANT": "SUNAINA PIYAR ALI", "HOUSE": "IBN_E_FADLAN"}] };
+
+        function loadStudents() {
+            const r = document.getElementById('race').value;
+            const list = document.getElementById('student-list');
+            const searchInput = document.getElementById('student-search');
+            
+            // Clear previous
+            list.innerHTML = '';
+            searchInput.value = '';
+            document.getElementById('house-display').value = '';
+            
+            if (raceData[r]) {
+                raceData[r].forEach(e => {
+                    const opt = document.createElement('option');
+                    opt.value = e.PARTICIPANT;
+                    list.appendChild(opt);
+                });
+            }
+        }
+
+        function handleStudentSelection() {
+            const race = document.getElementById('race').value;
+            const name = document.getElementById('student-search').value;
+            const hDisplay = document.getElementById('house-display');
+            const searchInput = document.getElementById('student-search');
+
+            if (!race || !name) return;
+
+            const studentObj = raceData[race].find(s => s.PARTICIPANT === name);
+
+            if (studentObj) {
+                hDisplay.value = studentObj.HOUSE.replace(/_/g, ' ');
+                searchInput.dataset.currentHouse = studentObj.HOUSE;
+            } else {
+                hDisplay.value = "";
+                delete searchInput.dataset.currentHouse;
+            }
+        }
+
+        function saveToBuffer(pts, type, priority) {
+            const r = document.getElementById('race').value;
+            const s = document.getElementById('student-search').value;
+            const h = document.getElementById('student-search').dataset.currentHouse;
+
+            if (!r || !s || !h) return alert("Select a valid Race and Student first!");
+
+            db.ref('scores/' + h).transaction(c => (c || 0) + pts);
+            db.ref(`medals/${h}/${type}`).transaction(c => (c || 0) + 1);
+            
+            localBuffer.push({ name: s, house: h, medal: type, race: r, priority: priority });
+            
+            // UI Feedback and Clear
+            alert(`✅ Recorded: ${s} (${type})`);
+            document.getElementById('student-search').value = "";
+            document.getElementById('house-display').value = "";
+        }
+
+        function showOnTable() {
+            if (localBuffer.length === 0) return alert("No winners recorded in queue yet!");
+            localBuffer.forEach(item => db.ref('history').push(item));
+            localBuffer = []; 
+            alert("Sent to Live Table!");
+        }
+
+        function startNewRace() {
+            if(confirm("Clear Table for next race?")) { 
+                db.ref('history').remove(); 
+                localBuffer = []; 
+            }
+        }
+
+        function fullReset() {
+            if(confirm("DANGER: This will delete ALL points and history. Proceed?")) {
+                db.ref('scores').remove();
+                db.ref('medals').remove();
+                db.ref('history').remove();
+                alert("Database Reset!");
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>

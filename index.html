@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Housing Matches 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        body { background: #020617; color: white; overflow: hidden; font-family: 'Inter', sans-serif; }
+        
+        /* Entrance animation for rows */
+        .row-anim { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
+        @keyframes fadeInUp { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        /* The scrolling magic */
+        #scroll-wrapper {
+            display: flex;
+            flex-direction: column;
+            will-change: transform; /* Tells the browser to use GPU */
+        }
+
+        /* Fades names out at top and bottom so they don't just "cut off" */
+        .mask-vignette {
+            mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+        }
+
+        /* Smooth CSS Animation */
+        @keyframes scrollUp {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(var(--scroll-distance)); }
+        }
+    </style>
+</head>
+<body class="p-8 h-screen flex flex-col">
+
+    <div class="mb-6 flex justify-between items-end border-b border-white/10 pb-4">
+        <h1 class="text-5xl font-black italic uppercase tracking-tighter">AMREC SPORTS <span class="text-indigo-500">DAY</span></h1>
+        <div id="race-tag" class="text-xl font-bold text-indigo-400 italic uppercase">READY...</div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-8 flex-grow overflow-hidden">
+        
+        <div class="flex flex-col gap-6 overflow-hidden">
+            <div class="bg-slate-900/60 rounded-[32px] border border-white/5 overflow-hidden shadow-2xl">
+                <table class="w-full text-left">
+                    <thead class="bg-black/40 text-[10px] uppercase text-slate-500 font-black">
+                        <tr><th class="px-6 py-4">House Standings</th><th class="text-center">💎</th><th class="text-center">🥇</th><th class="text-center">🥈</th><th class="text-center">🥉</th></tr>
+                    </thead>
+                    <tbody id="medals-body" class="text-xl font-bold"></tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-900/40 rounded-[32px] border-2 border-indigo-500/10 flex-grow overflow-hidden flex flex-col shadow-2xl">
+                <div class="bg-white/5 px-6 py-3 text-[10px] font-black uppercase text-slate-400 tracking-widest">Recent Winners</div>
+                
+                <div id="history-container" class="flex-grow overflow-hidden p-4 mask-vignette">
+                    <div id="scroll-wrapper">
+                        <table class="w-full border-separate border-spacing-y-2">
+                            <tbody id="history-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-4 overflow-hidden" id="ranking-container"></div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD9hgPwH9w_Z6pf6raGzXT2LShihR2-lfA",
+            authDomain: "live-scorecard-amrec.firebaseapp.com",
+            databaseURL: "https://live-scorecard-amrec-default-rtdb.firebaseio.com",
+            projectId: "live-scorecard-amrec",
+            storageBucket: "live-scorecard-amrec.firebasestorage.app",
+            messagingSenderId: "1087081955486",
+            appId: "1:1087081955486:web:6f57336b51fb0d122f3b8f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const houses = [
+            { id: 'AL_BAIRUNI', name: 'AL BAIRUNI', color: 'yellow-400' },
+            { id: 'IBN_E_BATUTA', name: 'IBN-E-BATUTA', color: 'red-500' },
+            { id: 'IBN_E_FADLAN', name: 'IBN-E-FADLAN', color: 'blue-500' },
+            { id: 'NASIR_AL_KHUSRAW', name: 'NASIR AL KHUSRAW', color: 'emerald-500' }
+        ];
+
+        db.ref('medals').on('value', snap => {
+            const data = snap.val() || {};
+            document.getElementById('medals-body').innerHTML = houses.map(h => {
+                const m = data[h.id] || {};
+                return `<tr class="border-t border-white/5"><td class="px-6 py-4 text-${h.color}">${h.name}</td><td class="text-center">${m.Platinum || 0}</td><td class="text-center">${m.Gold || 0}</td><td class="text-center">${m.Silver || 0}</td><td class="text-center">${m.Bronze || 0}</td></tr>`;
+            }).join('');
+        });
+
+        db.ref('scores').on('value', snap => {
+            const scores = snap.val() || {};
+            const sorted = [...houses].sort((a,b) => (scores[b.id]||0) - (scores[a.id]||0));
+            document.getElementById('ranking-container').innerHTML = sorted.map((h, i) => `
+                <div class="flex-grow flex items-center justify-between bg-slate-900/60 px-8 py-2 rounded-[32px] border-l-[20px] border-${h.color}">
+                    <div class="flex items-center gap-6"><span class="text-6xl font-black text-slate-800 italic">#${i+1}</span><h3 class="text-4xl font-black text-${h.color}">${h.name}</h3></div>
+                    <div class="text-8xl font-black">${scores[h.id] || 0}</div>
+                </div>`).join('');
+        });
+
+        // Optimized Winners Feed
+        db.ref('history').on('value', snap => {
+            const hist = snap.val();
+            const tbody = document.getElementById('history-body');
+            const tag = document.getElementById('race-tag');
+            const wrapper = document.getElementById('scroll-wrapper');
+            
+            if(!hist) { 
+                tbody.innerHTML = ''; 
+                tag.innerText = "WAITING..."; 
+                wrapper.style.animation = "none";
+                return; 
+            }
+
+            const arr = Object.values(hist).sort((a,b) => a.priority - b.priority);
+            tag.innerText = arr[0].race;
+
+            tbody.innerHTML = arr.map((win, i) => {
+                const hColor = houses.find(h => h.id === win.house).color;
+                const icon = win.medal === 'Platinum' ? '💎' : win.medal === 'Gold' ? '🥇' : win.medal === 'Silver' ? '🥈' : '🥉';
+                return `
+                    <tr class="bg-white/5 row-anim" style="animation-delay:${i*0.1}s">
+                        <td class="px-6 py-4 rounded-l-2xl font-black text-2xl border-l-4 border-${hColor}">${win.name}</td>
+                        <td class="px-6 py-4 text-right rounded-r-2xl text-4xl">${icon}</td>
+                    </tr>`;
+            }).join('');
+
+            // Calculate Scroll Distance and Start CSS Animation
+            setTimeout(() => {
+                const containerHeight = document.getElementById('history-container').offsetHeight;
+                const contentHeight = wrapper.offsetHeight;
+
+                if (contentHeight > containerHeight) {
+                    const diff = containerHeight - contentHeight - 50; // Extra padding
+                    wrapper.style.setProperty('--scroll-distance', `${diff}px`);
+                    
+                    // Adjust speed based on content length (faster if more names)
+                    const duration = Math.max(10, arr.length * 2); 
+                    wrapper.style.animation = `scrollUp ${duration}s linear infinite alternate`;
+                } else {
+                    wrapper.style.animation = "none";
+                }
+            }, 1500); // Wait for entry animation to finish
+        });
+    </script>
+</body>
+</html>
